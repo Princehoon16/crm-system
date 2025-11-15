@@ -20,6 +20,12 @@ class NewPasswordController extends Controller
      */
     public function create(Request $request): View
     {
+        if ($request->has('token') || $request->route('token')) {
+            session(['reset_password_token' => $request->token ?? $request->route('token')]);
+        }
+        if ($request->has('email')) {
+            session(['reset_password_email' => $request->email]);
+        }
         return view('auth.reset-password', ['request' => $request]);
     }
 
@@ -39,8 +45,13 @@ class NewPasswordController extends Controller
         // Here we will attempt to reset the user's password. If it is successful we
         // will update the password on an actual user model and persist it to the
         // database. Otherwise we will parse the error and return the response.
-        $status = Password::reset(
-            $request->only('email', 'password', 'password_confirmation', 'token'),
+       $status = Password::reset(
+            [
+                'email' => session('reset_password_email') ?? $request->email,
+                'password' => $request->password,
+                'password_confirmation' => $request->password_confirmation,
+                'token' => session('reset_password_token') ?? $request->token
+            ],
             function (User $user) use ($request) {
                 $user->forceFill([
                     'password' => Hash::make($request->password),
@@ -50,6 +61,9 @@ class NewPasswordController extends Controller
                 event(new PasswordReset($user));
             }
         );
+
+        session()->forget('reset_password_token');
+        session()->forget('reset_password_email');
 
         // If the password was successfully reset, we will redirect the user back to
         // the application's home authenticated view. If there is an error we can

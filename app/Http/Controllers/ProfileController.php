@@ -16,8 +16,36 @@ class ProfileController extends Controller
      */
     public function edit(Request $request): View
     {
+        $user = $request->user();
+        
+        // Safe counts with fallback
+        $stats = [
+            'orders_count' => 0,
+            'tickets_count' => 0,
+            'reward_points' => $user->reward_points ?? 0,
+        ];
+
+        // Try to get orders count safely
+        try {
+            if (method_exists($user, 'orders') && class_exists('App\Models\Order')) {
+                $stats['orders_count'] = $user->orders()->count();
+            }
+        } catch (\Exception $e) {
+            $stats['orders_count'] = 0;
+        }
+
+        // Try to get tickets count safely
+        try {
+            if (method_exists($user, 'tickets') && class_exists('App\Models\SupportTicket')) {
+                $stats['tickets_count'] = $user->tickets()->count();
+            }
+        } catch (\Exception $e) {
+            $stats['tickets_count'] = 0;
+        }
+
         return view('profile.edit', [
-            'user' => $request->user(),
+            'user' => $user,
+            'stats' => $stats
         ]);
     }
 
